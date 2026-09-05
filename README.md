@@ -10,6 +10,11 @@ bottom "dossier" sheet holding your articles, a copy-to-clipboard contact
 section, an RSS feed, and self-hosted fonts — all served as static files from
 [Cloudflare Workers](https://workers.cloudflare.com/), free tier included.
 
+**[Live demo →](https://iuhx.github.io/glassblog/)** — this repo doubles as a
+GitHub Pages site (Settings → Pages → deploy from branch `main`, `/` root), so
+you can see the template running before you connect Cloudflare. Production
+still ships to Workers; Pages is just the always-on preview.
+
 ---
 
 ## Table of contents
