@@ -147,24 +147,50 @@ not required — edit the `<p class="footnote">` block in `index.html`.
 <a id="write-articles"></a>
 ## Write articles
 
-1. Create `articles/YYYY-MM-DD-my-post.md` — the date prefix is what shows
-   beside the title in the list.
-2. Run:
+Once Cloudflare is connected (Quickstart step 2), publishing needs nothing
+local. Two build settings do all the work — set them once in
+**Workers & Pages → your worker → Settings → Build**:
+
+```text
+Build command:   node publish.mjs --ci
+Deploy command:  npx wrangler deploy
+```
+
+Then the daily loop is exactly this:
+
+1. Drop `YYYY-MM-DD-my-post.md` into `articles/` — on your machine or right
+   in the GitHub web editor.
+2. Commit and push.
+3. Cloudflare runs the build command (it rescans `articles/` and `notices/`,
+   regenerates every index file, the feeds and `site/`), then deploys.
+   ~30 seconds later the post is live, date prefix and all.
+
+No GitHub Action, no generated files pushed back to the repo — the build
+happens at deploy time, from whatever is in the repo at that commit.
+
+The date prefix shows beside the title; every article gets a shareable
+`#/article/<file>` link that survives refresh and the back button.
+
+**Running `node publish.mjs` locally is optional** — useful to preview the
+final build, to publish from a machine before Cloudflare is connected, or to
+deploy by hand:
 
 ```sh
-node publish.mjs             # rebuild index files + feeds + site/ → commit → push
+node publish.mjs             # build everything → commit → push
 node publish.mjs --deploy    # …and deploy from your machine right away
 node publish.mjs --dry       # build everything except git / deploy
 ```
 
-3. Push (done automatically by `publish.mjs`) → Cloudflare redeploys → live.
+**What the build does:** scans `articles/*.md` and `notices/*.md` (newest
+first), rewrites `articles/index.json`, `notices/index.json`, `rss.xml`,
+`robots.txt` and `sitemap.xml` (links built from `siteUrl` in `config.js`),
+and assembles the deployment into `site/` — only what visitors need, repo
+files never ship. Requires Node 18+; git only for the local commit-and-push
+path.
 
-**What `publish.mjs` actually does:** scans `articles/*.md` and
-`notices/*.md` (newest first), rewrites `articles/index.json`,
-`notices/index.json`, `rss.xml`, `robots.txt` and `sitemap.xml` (links built
-from `siteUrl` in `config.js`), assembles the deployment into `site/` — only
-what visitors need, repo files never ship — then commits and pushes.
-Requires Node 18+ and git.
+> The GitHub Pages demo serves the repo root as-is, so its article *list*
+> only updates when a committed build is pushed. Cloudflare — the real host —
+> rebuilds on every push once the build command above is set.
 
 **Markdown support:** headings (# to ###), bold, italic, inline code, fenced
 code blocks, blockquotes, ordered/unordered lists, links, images, and `---`
