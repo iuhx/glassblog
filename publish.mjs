@@ -8,7 +8,7 @@
  *
  * The site URL is read from config.js (siteUrl).
  */
-import { readdirSync, statSync, writeFileSync, readFileSync } from 'node:fs';
+import { readdirSync, statSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const titleFrom = (f) => f
@@ -44,6 +44,24 @@ const files = readdirSync('articles')
 
 writeFileSync('articles/index.json', JSON.stringify(files, null, 2) + '\n');
 console.log(files.length ? 'index.json ← ' + files.join(', ') : 'index.json ← (no articles found)');
+
+/* 1b. Scan notices/, newest first (date prefix wins, fallback: file mtime) */
+if (existsSync('notices')) {
+  const noticeFiles = readdirSync('notices')
+    .filter((f) => f.toLowerCase().endsWith('.md'))
+    .map((f) => {
+      const iso = dateFrom(f);
+      const t = iso ? new Date(iso + 'T00:00:00') : statSync('notices/' + f).mtime;
+      return { f, t };
+    })
+    .sort((a, b) => b.t - a.t)
+    .map((x) => x.f);
+
+  writeFileSync('notices/index.json', JSON.stringify(noticeFiles, null, 2) + '\n');
+  console.log(noticeFiles.length ? 'notices/index.json ← ' + noticeFiles.join(', ') : 'notices/index.json ← (no notices found)');
+  const unprefixed = noticeFiles.filter((f) => !dateFrom(f));
+  if (unprefixed.length) console.log('⚠ notices without a YYYY-MM-DD- prefix will show no date:', unprefixed.join(', '));
+}
 
 /* 2. rss.xml */
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

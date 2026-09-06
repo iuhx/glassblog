@@ -37,7 +37,7 @@
     --hairline: rgba(255,255,255,.08);
     --hairline-strong: rgba(255,255,255,.18);
     --glass-bg: rgba(13,15,20,.55);
-    --glass-strong: rgba(13,15,20,.80);
+    --glass-strong: rgba(13,15,20,.78);
     --radius-card: 20px;
     --nav-h: 52px;
     --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -226,7 +226,7 @@
   .sheet {
     position: fixed; left: 50%; top: 0; z-index: 50;
     width: min(680px, 100%);
-    height: var(--sheet-h, 92vh);
+    height: var(--sheet-h, 92dvh);
     transform: translate3d(-50%, 100vh, 0);
     will-change: transform;
     background: var(--glass-strong);
@@ -250,6 +250,16 @@
   .sheet::after {                 /* pointer-tracked sheen over the whole sheet */
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(430px circle at var(--mx, 30%) var(--my, 12%), rgba(255,255,255,.065), transparent 62%);
+  }
+  .sheet .lens, .reader .lens {   /* edge lensing: brighten + re-saturate a thin band of the backdrop */
+    position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    padding: 2px;
+    -webkit-backdrop-filter: brightness(1.16) saturate(160%);
+    backdrop-filter: brightness(1.16) saturate(160%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
   }
   .sheet-head { flex: none; padding: 8px 24px 14px; cursor: grab; user-select: none; touch-action: none; }
   .sheet-head:active { cursor: grabbing; }
@@ -293,6 +303,16 @@
     margin-top: 6px; font-size: 13.5px; font-weight: 300; line-height: 1.6;
     color: var(--text-2); letter-spacing: -0.004em;
   }
+  .rail .note p { margin: 0 0 8px; }
+  .rail .note p:last-child { margin-bottom: 0; }
+  .rail .note strong { color: var(--text); font-weight: 600; }
+  .rail .note a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255,255,255,.3); }
+  .rail .note code {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px;
+    background: rgba(255,255,255,.07); border: 1px solid var(--hairline);
+    border-radius: 5px; padding: 1px 5px;
+  }
+  .rail .note ul, .rail .note ol { margin: 0 0 8px; padding-left: 20px; }
   .rail .empty { font-size: 13px; color: var(--text-3); padding: 2px 0 6px 20px; }
 
   .article-list .article {
@@ -316,10 +336,10 @@
   .reader {
     position: fixed; left: 50%; top: 0; z-index: 55;
     width: min(680px, 100%);
-    height: var(--reader-h, 100vh);
+    height: var(--reader-h, 100dvh);
     transform: translate3d(-50%, 100vh, 0);
     will-change: transform;
-    background: rgba(10,11,15,.93);
+    background: rgba(10,11,15,.82);
     -webkit-backdrop-filter: blur(34px) saturate(190%) brightness(1.04);
     backdrop-filter: blur(34px) saturate(190%) brightness(1.04);
     border: 1px solid var(--hairline); border-bottom: none;
@@ -337,8 +357,12 @@
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
   }
+  .reader::after {                /* faint pointer-tracked sheen (kept subtle for reading) */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(430px circle at var(--mx, 30%) var(--my, 8%), rgba(255,255,255,.04), transparent 62%);
+  }
   .reader-head {
-    flex: none; padding: 10px 16px 12px;
+    flex: none; padding: calc(10px + env(safe-area-inset-top)) 16px 12px;
     cursor: grab; user-select: none; touch-action: none;
   }
   .reader-head:active { cursor: grabbing; }
@@ -349,7 +373,7 @@
   }
   .reader-body {
     flex: 1; overflow-y: auto; overscroll-behavior: contain;
-    padding: 8px 30px 64px;
+    padding: 8px 30px calc(64px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--hairline);
     touch-action: pan-y;
     scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.14) transparent;
@@ -455,6 +479,19 @@
 
   :focus-visible { outline: 2px solid rgba(248,250,252,.75); outline-offset: 3px; border-radius: 8px; }
 
+  /* no backdrop-filter support → keep text readable on solid surfaces */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .plate .cell, .sheet, .reader, .nav::before { background: rgba(10,11,15,.97); }
+  }
+  /* phones & touch: cheaper glass, no ambient blob animation */
+  @media (max-width: 560px), (pointer: coarse) {
+    .blob-a, .blob-b, .blob-c { animation: none; }
+    .plate .cell, .sheet, .reader {
+      -webkit-backdrop-filter: blur(24px) saturate(175%);
+      backdrop-filter: blur(24px) saturate(175%);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .blob-a, .blob-b, .blob-c { animation: none; }
   }
@@ -520,7 +557,9 @@
         </button>
         <div class="panel" id="panel-about">
           <div class="panel-inner">
-            <p id="aboutText"></p>
+            <div id="aboutText">
+              <p>This blog lives in a single HTML file. Markdown goes into the articles folder, publishing is one command, and the whole thing runs free on serverless.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -532,7 +571,8 @@
   </div>
 </main>
 
-<section class="sheet" id="sheet" role="dialog" aria-label="Dossier — articles and contact" aria-modal="false">
+<section class="sheet" id="sheet" role="dialog" aria-label="Dossier" aria-modal="false">
+  <div class="lens" aria-hidden="true"></div>
   <div class="sheet-head" id="sheetHead">
     <button class="grabber" id="grabber" data-press aria-label="Toggle dossier sheet" aria-expanded="false"></button>
     <div class="row">
@@ -560,6 +600,7 @@
 </section>
 
 <div class="reader" id="reader" role="dialog" aria-modal="true" aria-label="Article reader" aria-hidden="true">
+  <div class="lens" aria-hidden="true"></div>
   <div class="reader-head" id="readerHead">
     <button class="grabber" id="readerGrabber" aria-label="Close article"></button>
   </div>
@@ -752,26 +793,21 @@ if (cfg.email) {
   }
 }
 
-/* numbered rows: hide empties, renumber what remains */
+/* numbered rows: hide empties, renumber what remains.
+   Notices are file-driven (notices/), About is always present. */
 {
-  const notices = Array.isArray(cfg.notices) ? cfg.notices : [];
   const manualProjects = Array.isArray(cfg.projects) ? cfg.projects : [];
-  const showNotices = notices.length > 0;
   const showProjects = Boolean(cfg.githubUser) || manualProjects.length > 0;
   const ROMAN = ['i.', 'ii.', 'iii.'];
   let r = 0;
   for (const id of ['clause-notices', 'clause-projects', 'clause-about']) {
     const block = document.getElementById(id);
-    if ((id === 'clause-notices' && showNotices) ||
-        (id === 'clause-projects' && showProjects) ||
-        id === 'clause-about') {
+    if (id !== 'clause-projects' || showProjects) {
       block.querySelector('.no').textContent = ROMAN[r++];
     } else {
       block.remove();
     }
   }
-  $('#aboutText').textContent = cfg.about ||
-    'This blog lives in a single HTML file. Markdown files go into the articles folder, and reading is believing.';
 }
 
 /* ============================================================
@@ -895,6 +931,7 @@ function mdToHtml(src) {
 
 /* ---------- Reader: springs up over everything, drag down to dismiss ---------- */
 const reader = $('#reader'), readerHead = $('#readerHead'), readerBody = $('#readerBody');
+const readerGrabber = $('#readerGrabber');
 const readerGeo = { ih: 0 };
 function measureReader() {
   readerGeo.ih = window.innerHeight;
@@ -909,6 +946,7 @@ const readerSpring = new Spring({
 readerSpring.jump(readerGeo.ih);
 
 let readerOpen = false, readerFile = null;
+let readerOpener = null;
 const mdCache = new Map();
 
 function openArticle(file, fromHash = false) {
@@ -920,13 +958,16 @@ function openArticle(file, fromHash = false) {
   content.innerHTML = '<p class="r-loading">Loading…</p>';
   readerBody.scrollTop = 0;
   reader.setAttribute('aria-hidden', 'false');
+  if (!readerOpen) readerOpener = document.activeElement;
   readerOpen = true;
+  syncInert();
   readerSpring.to(0, 0);
   updateReaderNav();
   if (!fromHash) {
     const h = '#/article/' + encodeURIComponent(file);
     if (location.hash !== h) location.hash = h;   // shareable, back-button friendly
   }
+  if (!fromHash) readerGrabber.focus({ preventScroll: true });   // move keyboard focus into the reader
   if (mdCache.has(file)) { content.innerHTML = mdToHtml(mdCache.get(file)); return; }
   fetch(`${ARTICLES_DIR}/${encodeURIComponent(file)}`, { cache: 'no-store' })
     .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
@@ -942,12 +983,16 @@ function openArticle(file, fromHash = false) {
 function closeReader(velocity = 0) {
   readerOpen = false;
   reader.setAttribute('aria-hidden', 'true');
+  syncInert();
   readerSpring.to(readerGeo.ih, velocity);      // exits along the same path it entered
   // strip the shareable hash without adding a history entry
   if (/^#\/article\//.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+  if (readerOpener) { readerOpener.focus?.({ preventScroll: true }); readerOpener = null; }
 }
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && readerOpen) closeReader(0);
+  if (e.key !== 'Escape') return;
+  if (readerOpen) closeReader(0);
+  else if (sheetState === 'open') setSheet('peek');
 });
 /* Deep links: #/article/<file> — shareable, survives refresh, back works. */
 window.addEventListener('hashchange', () => {
@@ -998,6 +1043,9 @@ function readerEndDrag(e) {
 }
 readerHead.addEventListener('pointerup', readerEndDrag);
 readerHead.addEventListener('pointercancel', readerEndDrag);
+readerGrabber.addEventListener('click', (e) => {
+  if (e.detail === 0) closeReader(0);   // keyboard activation; pointer taps close via the head
+});
 
 window.addEventListener('resize', () => {
   measureReader();
@@ -1062,31 +1110,85 @@ scroller.addEventListener('scroll', () => {
   });
 }, { passive: true });
 
-/* ---------- Notices (row i) — edit the notices array in config.js ---------- */
-function renderNotices() {
+/* ---------- Notices (row i) — md files in the notices/ folder.
+   Filename `YYYY-MM-DD-slug.md` — the date prefix IS the date label
+   (shown beside the notice); the file body is the content, rendered as
+   markdown. Publish = drop a file in + push. ---------- */
+const noticeMeta = (file) => {
+  const m = file.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
+  const rest = m ? m[2] : file;
+  const SMALL = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'to', 'of', 'in', 'on', 'for', 'with', 'at', 'by']);
+  return {
+    date: m ? m[1] : '',
+    title: rest.replace(/\.md$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ')
+      .map((w, i) => (i > 0 && SMALL.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+      .join(' '),
+  };
+};
+function renderNotices(entries) {
   const rail = $('#noticesRail');
   if (!rail) return;
   rail.textContent = '';
-  const notices = Array.isArray(cfg.notices) ? cfg.notices : [];
-  if (!notices.length) {
+  if (!entries.length) {
     const p = document.createElement('p');
     p.className = 'empty';
     p.textContent = 'Nothing yet — the first notice is on its way.';
     rail.appendChild(p);
     return;
   }
-  for (const n of notices) {
+  for (const n of entries) {
     const stop = document.createElement('div');
     stop.className = 'stop';
     const era = document.createElement('p');
     era.className = 'era'; era.textContent = n.date;
-    const note = document.createElement('p');
-    note.className = 'note'; note.textContent = n.text;
+    const note = document.createElement('div');
+    note.className = 'note'; note.innerHTML = n.html;
     stop.append(era, note);
     rail.appendChild(stop);
   }
 }
-renderNotices();
+function prettyDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+async function loadNotices() {
+  const offline = [{ date: '', html: '<p>Notices land here first — small, infrequent, true.</p>' }];
+  if (location.protocol === 'file:') { renderNotices(offline); return; }
+  try {
+    const res = await fetch('notices/index.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const files = (await res.json()).filter((f) => /\.md$/i.test(f));
+    const settled = await Promise.allSettled(files.map(async (f) => {
+      const r = await fetch(`notices/${encodeURIComponent(f)}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return { file: f, md: await r.text() };
+    }));
+    const entries = settled.flatMap((s) => {
+      if (s.status !== 'fulfilled') return [];          // a missing file is skipped, never rendered
+      const meta = noticeMeta(s.value.file);
+      const html = mdToHtml(s.value.md.trim());
+      if (!html) return [];
+      return [{ date: prettyDate(meta.date), html }];
+    });
+    renderNotices(entries);
+  } catch (_) {
+    renderNotices(offline);
+  }
+}
+loadNotices();
+
+/* ---------- About (row iii) — markdown body from about/index.md ---------- */
+async function loadAbout() {
+  if (location.protocol === 'file:') return;   // keep the inline default on file://
+  try {
+    const res = await fetch('about/index.md', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = (await res.text()).replace(/\r\n?/g, '\n').trim();
+    if (text) $('#aboutText').innerHTML = mdToHtml(text);
+  } catch (_) { /* keep the inline default */ }
+}
+loadAbout();
 
 /* ---------- Projects (row ii) — from config.js: set githubUser to pull
    your repos live, or list them by hand in the projects array. ---------- */
@@ -1118,22 +1220,21 @@ function renderProjectEntries(entries) {
       nameEl = document.createElement('span');
     }
     nameEl.classList.add('p-name');
-    const desc = document.createElement('p');
-    desc.className = 'p-desc'; desc.textContent = pr.desc;
-    item.append(nameEl, desc);
+    item.append(nameEl);
+    if (pr.desc) {
+      const desc = document.createElement('p');
+      desc.className = 'p-desc'; desc.textContent = pr.desc;
+      item.append(desc);
+    }
     list.appendChild(item);
   }
 }
 async function renderProjects() {
   if (!GITHUB_USER) { renderProjectEntries(FALLBACK_PROJECTS); return; }
-  // serve from cache first — instant for the visitor, gentle on the API limit
-  try {
-    const cached = JSON.parse(localStorage.getItem('gh-repos:' + GITHUB_USER) || 'null');
-    if (cached && Array.isArray(cached.repos) && Date.now() - cached.t < 6 * 3600e3) {
-      renderProjectEntries(cached.repos);
-      return;
-    }
-  } catch (_) {}
+  // stale-while-revalidate: paint the cache instantly, then refresh from GitHub
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem('gh-repos:' + GITHUB_USER) || 'null'); } catch (_) {}
+  if (cached && Array.isArray(cached.repos)) renderProjectEntries(cached.repos);
   try {
     const res = await fetch(`https://api.github.com/users/${GITHUB_USER}/repos?sort=updated&per_page=100`, {
       headers: { 'Accept': 'application/vnd.github+json' },
@@ -1144,11 +1245,12 @@ async function renderProjects() {
       .map((r) => ({ name: r.name, desc: r.description || '', url: r.html_url }));
     if (repos.length) {
       try { localStorage.setItem('gh-repos:' + GITHUB_USER, JSON.stringify({ t: Date.now(), repos })); } catch (_) {}
-      renderProjectEntries(repos);
+      const same = cached && JSON.stringify(cached.repos) === JSON.stringify(repos);
+      if (!same) renderProjectEntries(repos);
       return;
     }
   } catch (_) {}
-  renderProjectEntries(FALLBACK_PROJECTS);
+  if (!cached) renderProjectEntries(FALLBACK_PROJECTS);
 }
 renderProjects();
 
@@ -1184,6 +1286,12 @@ sheetSpring.jump(geo.H);                   // fully off-screen
 setTimeout(() => sheetSpring.to(geo.peekOffset, 0), REDUCED.matches ? 0 : 540);
 
 let sheetState = 'peek';
+let sheetOpener = null;
+function syncInert() {
+  // the nav keeps its Close/Dossier button alive — it is the sheet's own close path
+  scroller.inert = sheetState === 'open' || readerOpen;
+  nav.inert = readerOpen;   // the reader is a modal with close paths of its own
+}
 function setSheet(state, velocity = 0) {
   sheetState = state;
   sheetSpring.to(state === 'open' ? 0 : geo.peekOffset, velocity);
@@ -1193,6 +1301,14 @@ function setSheet(state, velocity = 0) {
   detailsBtn.setAttribute('aria-expanded', String(open));
   if (open) detailsBtn.textContent = 'Close';
   else detailsBtn.textContent = 'Dossier';
+  if (open) sheetOpener = document.activeElement;   // capture before inert moves focus to body
+  syncInert();
+  if (open) {
+    grabber.focus({ preventScroll: true });
+  } else if (sheetOpener) {
+    sheetOpener.focus?.({ preventScroll: true });
+    sheetOpener = null;
+  }
 }
 const toggleSheet = () => setSheet(sheetState === 'open' ? 'peek' : 'open');
 
@@ -1284,8 +1400,19 @@ window.addEventListener('resize', () => {
   for (const [, rec] of rowPanels) if (rec.open) rec.sp.jump(rec.inner.scrollHeight);
 });
 
+/* iOS toolbar collapse fires on visualViewport, not always on window */
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', () => {
+    measureReader();
+    readerSpring.jump(readerOpen ? 0 : readerGeo.ih);
+    measure();
+    sheet.style.top = geo.yOpen + 'px';
+    sheetSpring.jump(sheetState === 'open' ? 0 : geo.peekOffset);
+  });
+}
+
 /* ---------- Liquid glass: specular sheen follows the pointer ---------- */
-[sheet, ...document.querySelectorAll('.plate .cell')].forEach((el) => {
+[sheet, reader, ...document.querySelectorAll('.plate .cell')].forEach((el) => {
   el.addEventListener('pointermove', (e) => {
     const r = el.getBoundingClientRect();
     el.style.setProperty('--mx', (e.clientX - r.left).toFixed(1) + 'px');

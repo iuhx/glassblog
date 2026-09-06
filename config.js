@@ -19,21 +19,18 @@ window.GLASSBLOG = {
   // the "Now" card on the front page — what you're up to. '' hides the card.
   now: 'Writing.',
 
-  // the About panel (numbered row iii.). '' falls back to a stock line.
-  about: 'This blog lives in a single HTML file. Markdown goes into the articles folder, publishing is one command, and the whole thing runs free on serverless.',
-
-  // short dated notes, shown in the numbered Notices row — newest first.
-  // [] hides the row.
-  notices: [
-    { date: 'Sep 2026', text: 'glassblog is live — fork it, make it yours, and write.' },
-  ],
-
   // your projects, shown in the numbered Projects row.
   // set githubUser to pull your public GitHub repos automatically
-  // (cached for 6h, falls back to this list when offline), or just
-  // list them by hand and leave githubUser: ''.
+  // (stale-while-revalidate cache, falls back to this list when offline),
+  // or just list them by hand and leave githubUser: ''.
+  // both empty hides the row.
   githubUser: '',
   projects: [
     { name: 'glassblog', desc: 'The engine under this blog — a single-file template for Cloudflare Workers.', url: 'https://github.com/iuhx/glassblog' },
   ],
+
+  // ── not here on purpose ─────────────────────────────────────────
+  // notices  → markdown files in notices/  (YYYY-MM-DD-slug.md)
+  // about    → markdown file at about/index.md
+  // Drop a file in, run `node publish.mjs`, push. Done.
 };

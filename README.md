@@ -79,16 +79,23 @@ Everything visible on the page is driven from this one file. Empty string
 (`''`) hides the thing; a filled value shows it.
 
 | Field | What it controls | Example |
-|---|---|---|
+| --- | --- | --- |
 | `name` | Wordmark, browser-tab title, footer, favicon letter, nav title | `'maya.dev'` |
 | `tagline` | The one line under the big wordmark | `'Notes on code and coasters.'` |
 | `email` | Adds a **Say hello** button and a **Correspondence** section with copy-to-clipboard. `''` hides both | `'hi@maya.dev'` |
 | `siteUrl` | Where your blog lives — used for RSS article links | `'https://maya.dev'` |
 | `now` | The **NOW** card on the front page (what you're up to). `''` hides the card | `'Freelancing.'` |
-| `about` | The **About** panel (numbered row iii.) | `'I build things for the web.'` |
-| `notices` | Dated one-liners in the **Notices** row, newest first. `[]` hides the row | `[{ date: 'Sep 2026', text: 'Site is live.' }]` |
-| `githubUser` | Your GitHub username — fills the **Projects** row with your public repos automatically (cached 6 h). `''` skips the API | `'maya'` |
-| `projects` | Manual project list, used when `githubUser` is empty or the API is unreachable | `[{ name, desc, url }]` |
+| `githubUser` | Your GitHub username — fills the **Projects** row with your public repos automatically (stale-while-revalidate cache). `''` skips the API | `'maya'` |
+| `projects` | Manual project list, used when `githubUser` is empty or the API is unreachable. Both empty hides the row | `[{ name, desc, url }]` |
+
+### Notices & About — markdown files, not config
+
+- **Notices** live in `notices/` as `YYYY-MM-DD-slug.md` files — the date
+  prefix shows beside the notice, the body is markdown (bold, links, code,
+  lists). Publish one the same way as an article: drop the file in, run
+  `node publish.mjs` (it rebuilds `notices/index.json`), push.
+- **About** (numbered row iii.) is `about/index.md` — one markdown file that
+  replaces the built-in default text.
 
 A dot in `name` gets special treatment: `'maya.dev'` renders with `.dev`
 dimmed, in the wordmark and in the **Site** card.
@@ -214,10 +221,12 @@ npx serve .
 
 ```
 index.html      the whole site — markup, styles, and logic in one file
-config.js       your name, tagline, email, siteUrl, now, about, notices, projects
+config.js       your name, tagline, email, siteUrl, now, projects
 articles/       markdown articles + index.json (the article list)
+notices/        markdown notices + index.json (the Notices row)
+about/index.md  the About panel body
 fonts/          self-hosted Sora / Inter / Cinzel (variable woff2)
-publish.mjs     one-command publishing (index.json + rss.xml + git push)
+publish.mjs     one-command publishing (index.json files + rss.xml + git push)
 rss.xml         the feed, regenerated on every publish
 _headers        security & caching headers
 404.html        not-found page

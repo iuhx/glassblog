@@ -32,13 +32,17 @@ const hello = 'glassblog';
 
 ## Make it yours
 
-Open `config.js` — everything visible lives there:
+Open `config.js` — the visible surface lives there:
 
 - `name` becomes the wordmark, the tab title, even the favicon letter
-- `tagline`, `now`, `about` fill the front page and the numbered rows
+- `tagline` and `now` fill the front page
 - `email` adds a "Say hello" button and a copy-to-clipboard section
-- `notices` and `projects` (or `githubUser`) feed the other rows
-- `siteUrl` points `rss.xml` at your domain
+- `projects` (or `githubUser`) fills the Projects row
+
+Markdown files handle the rest:
+
+- `notices/YYYY-MM-DD-slug.md` — dated one-liners in the Notices row
+- `about/index.md` — the About panel body
 
 Every article gets a shareable `#/article/…` link that survives refresh
 and the back button. Write plainly — the design stays out of the way.
