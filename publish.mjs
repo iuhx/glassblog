@@ -2,14 +2,18 @@
 /**
  * glassblog publishing.
  *
- *   node publish.mjs            scan articles/ → index.json + rss.xml → commit → push
+ *   node publish.mjs            scan articles/ + notices/ → index files + feeds + sitemap + site/ → commit → push
  *   node publish.mjs --deploy   … also run `npx wrangler deploy`
- *   node publish.mjs --dry      regenerate index.json + rss.xml only, no git / deploy
+ *   node publish.mjs --ci       CI mode: build everything, skip git (Workers Builds build command)
+ *   node publish.mjs --no-git   build everything, skip git
+ *   node publish.mjs --dry      build everything except git / deploy
  *
  * The site URL is read from config.js (siteUrl).
  */
-import { readdirSync, statSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { readdirSync, statSync, writeFileSync, readFileSync, existsSync, rmSync, mkdirSync, cpSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+
+const SITE_DIR = 'site';                // deployment output — wrangler.jsonc serves this folder
 
 const titleFrom = (f) => f
   .replace(/\.md$/i, '')
@@ -46,8 +50,9 @@ writeFileSync('articles/index.json', JSON.stringify(files, null, 2) + '\n');
 console.log(files.length ? 'index.json ← ' + files.join(', ') : 'index.json ← (no articles found)');
 
 /* 1b. Scan notices/, newest first (date prefix wins, fallback: file mtime) */
+let noticeFiles = [];
 if (existsSync('notices')) {
-  const noticeFiles = readdirSync('notices')
+  noticeFiles = readdirSync('notices')
     .filter((f) => f.toLowerCase().endsWith('.md'))
     .map((f) => {
       const iso = dateFrom(f);
@@ -89,20 +94,63 @@ writeFileSync('rss.xml',
   '</channel></rss>\n');
 console.log('rss.xml written');
 
-/* 3. Commit + push (+ deploy) */
+/* 2b. robots.txt + sitemap.xml — generated so they always follow siteUrl */
+writeFileSync('robots.txt',
+  'User-agent: *\n' +
+  'Allow: /\n' +
+  '\n' +
+  'Sitemap: ' + SITE_URL + '/sitemap.xml\n');
+console.log('robots.txt written');
+
+/* sitemap lastmod follows the freshest content change (newest article,
+   newest notice, or about/index.md) */
+const newest = [
+  files.length ? (dateFrom(files[0]) || statSync('articles/' + files[0]).mtime.toISOString().slice(0, 10)) : null,
+  noticeFiles.length ? (dateFrom(noticeFiles[0]) || statSync('notices/' + noticeFiles[0]).mtime.toISOString().slice(0, 10)) : null,
+  existsSync('about/index.md') ? statSync('about/index.md').mtime.toISOString().slice(0, 10) : null,
+].filter(Boolean).sort().pop() || new Date().toISOString().slice(0, 10);
+
+writeFileSync('sitemap.xml',
+  '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+  '  <url>\n' +
+  '    <loc>' + SITE_URL + '/</loc>\n' +
+  '    <lastmod>' + newest + '</lastmod>\n' +
+  '  </url>\n' +
+  '</urlset>\n');
+console.log('sitemap.xml written (lastmod ' + newest + ')');
+
+/* 2c. Build the deployment folder — only what the visitor needs.
+   .git, README, publish.mjs and other repo files never get uploaded. */
+rmSync(SITE_DIR, { recursive: true, force: true });
+mkdirSync(SITE_DIR, { recursive: true });
+for (const f of ['index.html', 'config.js', '404.html', '_headers', 'robots.txt', 'sitemap.xml', 'rss.xml', 'og-image.png']) {
+  if (existsSync(f)) cpSync(f, SITE_DIR + '/' + f);
+}
+for (const dir of ['articles', 'notices', 'about', 'fonts']) {
+  if (existsSync(dir)) cpSync(dir, SITE_DIR + '/' + dir, { recursive: true });
+}
+console.log('site/ synced → ready for deploy');
+
+/* 3. Commit + push (+ deploy) — skipped in CI; Workers Builds deploys the site/ built here */
+const IN_CI = !!process.env.CI || process.argv.includes('--ci');
 if (process.argv.includes('--dry')) {
   console.log('dry run — no git, no deploy');
   process.exit(0);
 }
 
 const sh = (cmd) => execSync(cmd, { stdio: 'inherit' });
-sh('git add -A');
-try {
-  execSync('git diff --cached --quiet');
-  console.log('nothing new to commit');
-} catch (_) {
-  sh('git commit -m "publish: update articles"');
-  sh('git push');
+if (IN_CI || process.argv.includes('--no-git')) {
+  console.log('CI/flag detected — skipping git (Cloudflare deploys the site/ built here)');
+} else {
+  sh('git add -A');
+  try {
+    execSync('git diff --cached --quiet');
+    console.log('nothing new to commit');
+  } catch (_) {
+    sh('git commit -m "publish: update content"');
+    sh('git push');
+  }
 }
 if (process.argv.includes('--deploy')) sh('npx wrangler deploy');
 console.log('done ✓');

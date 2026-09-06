@@ -48,19 +48,23 @@ Click **Fork** at the top of this page. You now have `you/glassblog`.
 1. Log in to [dash.cloudflare.com](https://dash.cloudflare.com).
 2. Go to **Workers & Pages → Create → Import a repository**.
 3. Authorize GitHub if asked, then pick your fork (`you/glassblog`).
-4. On the build settings screen, leave everything at the defaults:
-   - **Build command:** *(none — leave empty)*
+4. On the build settings screen:
+   - **Build command:** `node publish.mjs --ci`
    - **Deploy command:** `npx wrangler deploy`
    - **Root directory:** *(empty)*
 5. Click **Create and deploy**. ~30 seconds later your blog is live at
    `https://glassblog.<your-subdomain>.workers.dev`.
+
+The build command matters: it assembles the deployment into `site/` from
+whatever is in the repo — so content edited right here on GitHub (no local
+tooling) still reaches your site.
 
 **Path B — the terminal:**
 
 ```sh
 git clone https://github.com/you/glassblog && cd glassblog
 npx wrangler login        # opens your browser, one-time
-npx wrangler deploy
+node publish.mjs --ci --deploy   # build site/ + deploy
 ```
 
 ### 3 · Make it yours
@@ -148,17 +152,19 @@ not required — edit the `<p class="footnote">` block in `index.html`.
 2. Run:
 
 ```sh
-node publish.mjs             # rebuild index.json + rss.xml → commit → push
+node publish.mjs             # rebuild index files + feeds + site/ → commit → push
 node publish.mjs --deploy    # …and deploy from your machine right away
-node publish.mjs --dry       # just regenerate the two files, touch nothing else
+node publish.mjs --dry       # build everything except git / deploy
 ```
 
 3. Push (done automatically by `publish.mjs`) → Cloudflare redeploys → live.
 
-**What `publish.mjs` actually does:** scans `articles/*.md`, sorts newest
-first, rewrites `articles/index.json` and `rss.xml` (links built from
-`siteUrl` in `config.js`), then commits and pushes. Requires Node 18+ and
-git.
+**What `publish.mjs` actually does:** scans `articles/*.md` and
+`notices/*.md` (newest first), rewrites `articles/index.json`,
+`notices/index.json`, `rss.xml`, `robots.txt` and `sitemap.xml` (links built
+from `siteUrl` in `config.js`), assembles the deployment into `site/` — only
+what visitors need, repo files never ship — then commits and pushes.
+Requires Node 18+ and git.
 
 **Markdown support:** headings (# to ###), bold, italic, inline code, fenced
 code blocks, blockquotes, ordered/unordered lists, links, images, and `---`
@@ -188,10 +194,14 @@ npx serve .
 <a id="deploy-details"></a>
 ## Deploy details & build settings
 
-- **No build step.** The site is served as static assets straight from the
-  repo — `wrangler.jsonc` points Workers at `./` and that's it.
+- **No build step for the site itself.** `publish.mjs` assembles the
+  deployment into `site/` — index.html, config.js, articles, notices, about,
+  fonts and feeds. `.git`, README, publish.mjs and other repo-only files are
+  never uploaded. `site/` is gitignored and rebuilt on every deploy, so the
+  repo root stays the single source of truth (edit content on GitHub and CI
+  picks it up).
 - `wrangler.jsonc` explained:
-  - `"assets.directory": "./"` — everything in the repo is served.
+  - `"assets.directory": "./site"` — the built folder is what gets served.
   - `"html_handling": "auto-trailing-slash"` — `/about` serves cleanly.
   - `"not_found_handling": "404-page"` — unknown URLs render `404.html`.
 - `_headers` adds security headers and cache rules (fonts/og-image cached a
@@ -199,8 +209,9 @@ npx serve .
 - **Free tier:** static asset requests are free and unmetered on Workers;
   this blog comfortably runs at $0.
 - **Automatic deploys:** with the dashboard import (Path A), every push to
-  your fork's `main` branch rebuilds and redeploys. `node publish.mjs`
-  pushes for you, so writing is just: drop a file, run one command.
+  your fork's `main` branch runs the build command and redeploys.
+  `node publish.mjs` pushes for you, so writing is just: drop a file, run
+  one command.
 
 ---
 
@@ -226,11 +237,14 @@ articles/       markdown articles + index.json (the article list)
 notices/        markdown notices + index.json (the Notices row)
 about/index.md  the About panel body
 fonts/          self-hosted Sora / Inter / Cinzel (variable woff2)
-publish.mjs     one-command publishing (index.json files + rss.xml + git push)
-rss.xml         the feed, regenerated on every publish
+publish.mjs     one-command publishing (index files + feeds + site/)
+rss.xml         the feed, regenerated on publish
+robots.txt      crawler rules + sitemap pointer, regenerated on publish
+sitemap.xml     regenerated on publish
 _headers        security & caching headers
 404.html        not-found page
-wrangler.jsonc  Cloudflare Workers static-assets config
+wrangler.jsonc  Cloudflare Workers config — serves the built ./site folder
+site/           deployment output, built by publish.mjs (gitignored)
 og-image.png    1200×630 link-preview image
 ```
 
@@ -257,6 +271,11 @@ the array by hand.
 The script commits and pushes via your local git — make sure the repo has a
 remote (`git remote add origin …`) and push rights, or use
 `node publish.mjs --dry` and push manually.
+
+**Deploy fails with `site/` not found.**
+The deployment folder is built by `publish.mjs`. Run
+`node publish.mjs --ci --deploy` (local) or make sure the Workers Builds
+build command is `node publish.mjs --ci`.
 
 **Deploy fails with a compatibility-date error.**
 Run `npx wrangler@latest deploy` — an old cached wrangler may predate the
